@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { moiTransactions, memberships, contributionHistory, events } from "@/db/schema";
+import { createNotification } from "@/lib/notifications";
 import { eq, and, desc, asc, inArray, ilike } from "drizzle-orm";
 import { z } from "zod";
 
@@ -136,6 +137,18 @@ export async function POST(req: NextRequest) {
             amount: validation.data.amount,
             direction: validation.data.direction,
             date: event?.date || new Date(),
+        });
+
+        // Notify user
+        const eventInfo = await db.query.events.findFirst({
+            where: eq(events.id, validation.data.eventId),
+            columns: { title: true },
+        });
+        await createNotification({
+            userId: session.user.id,
+            type: "general",
+            title: "New Entry Added",
+            message: `₹${validation.data.amount.toLocaleString("en-IN")} ${validation.data.direction} ${validation.data.direction === "received" ? "from" : "to"} ${validation.data.contributorName} in ${eventInfo?.title || "event"}`,
         });
 
         return NextResponse.json(transaction, { status: 201 });

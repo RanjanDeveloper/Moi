@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { families, memberships } from "@/db/schema";
+import { families, memberships, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
+import { createNotification } from "@/lib/notifications";
 
 const joinSchema = z.object({
     inviteCode: z.string().min(1, "Invite code is required"),
@@ -56,6 +57,18 @@ export async function POST(req: NextRequest) {
             userId: session.user.id,
             familyId: family.id,
             role: "member",
+        });
+
+        // Notify family creator
+        const joiner = await db.query.users.findFirst({
+            where: eq(users.id, session.user.id),
+            columns: { name: true },
+        });
+        await createNotification({
+            userId: family.createdBy,
+            type: "family_invite",
+            title: "New Family Member",
+            message: `${joiner?.name || "Someone"} joined ${family.name}`,
         });
 
         return NextResponse.json(
