@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
@@ -65,6 +64,13 @@ export function NotificationsDropdown() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
+  const clearAll = async () => {
+    await fetch("/api/notifications", {
+      method: "DELETE",
+    });
+    setNotifications([]);
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -78,24 +84,37 @@ export function NotificationsDropdown() {
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-80 p-0 bg-slate-900 border-slate-800"
+        className="w-80 p-0 bg-slate-900 border-slate-800 overflow-hidden"
         align="end"
       >
         <div className="flex items-center justify-between p-3 border-b border-slate-800">
           <h3 className="font-semibold text-white text-sm">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-indigo-400 hover:text-indigo-300"
-              onClick={markAllRead}
-            >
-              <CheckCheck className="h-3 w-3 mr-1" />
-              Mark all read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-indigo-400 hover:text-indigo-300 h-7 px-2"
+                onClick={markAllRead}
+              >
+                <CheckCheck className="h-3 w-3 mr-1" />
+                Read all
+              </Button>
+            )}
+            {notifications.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-red-400 hover:text-red-300 h-7 px-2"
+                onClick={clearAll}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
-        <ScrollArea className="max-h-[300px]">
+        <div className="max-h-[400px] overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="p-6 text-center text-slate-500 text-sm">
               No notifications yet
@@ -114,11 +133,11 @@ export function NotificationsDropdown() {
                   {!notification.read && (
                     <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 flex-shrink-0" />
                   )}
-                  <div className={cn("flex-1", notification.read && "ml-4")}>
-                    <p className="text-sm font-medium text-white">
+                  <div className={cn("flex-1 min-w-0", notification.read && "ml-4")}>
+                    <p className="text-sm font-medium text-white truncate">
                       {notification.title}
                     </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">
                       {notification.message}
                     </p>
                     <p className="text-[10px] text-slate-600 mt-1">
@@ -131,7 +150,7 @@ export function NotificationsDropdown() {
               </div>
             ))
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

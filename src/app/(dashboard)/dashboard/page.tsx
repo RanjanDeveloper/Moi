@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { StatCard } from "@/components/stat-card";
 import {
   TrendingUp,
@@ -9,6 +10,9 @@ import {
   Calendar,
   Receipt,
   Crown,
+  Clock,
+  ArrowRight,
+  MapPin,
 } from "lucide-react";
 import {
   BarChart,
@@ -20,6 +24,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface Analytics {
   totalReceived: number;
@@ -31,25 +37,60 @@ interface Analytics {
   monthlyData: { month: string; received: number; given: number }[];
 }
 
+interface UpcomingEvent {
+  id: string;
+  title: string;
+  type: string;
+  date: string;
+  location: string | null;
+  status: string;
+}
+
+interface RecentTransaction {
+  id: string;
+  contributorName: string;
+  amount: number;
+  direction: "given" | "received";
+  createdAt: string;
+  event?: { title: string };
+}
+
 export default function DashboardPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const fetchAll = async () => {
       try {
-        const res = await fetch("/api/analytics");
-        if (res.ok) {
-          const data = await res.json();
-          setAnalytics(data);
+        const [analyticsRes, eventsRes, txRes] = await Promise.all([
+          fetch("/api/analytics"),
+          fetch("/api/events"),
+          fetch("/api/transactions?sortBy=createdAt&sortOrder=desc"),
+        ]);
+
+        if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
+        if (eventsRes.ok) {
+          const events = await eventsRes.json();
+          const now = new Date();
+          const upcoming = events
+            .filter((e: UpcomingEvent) => new Date(e.date) >= now && e.status === "open")
+            .sort((a: UpcomingEvent, b: UpcomingEvent) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .slice(0, 3);
+          setUpcomingEvents(upcoming);
+        }
+        if (txRes.ok) {
+          const txs = await txRes.json();
+          setRecentTransactions(txs.slice(0, 5));
         }
       } catch (error) {
-        console.error("Error fetching analytics:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchAnalytics();
+    fetchAll();
   }, []);
 
   if (loading) {
@@ -192,6 +233,99 @@ export default function DashboardPage() {
           ) : (
             <div className="flex items-center justify-center h-32 text-slate-500 text-sm">
               No contributions yet
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Stats Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Upcoming Events */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-indigo-400" />
+              Upcoming Events
+            </h3>
+            <Link href="/dashboard/events" className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {upcomingEvents.length > 0 ? (
+            <div className="space-y-3">
+              {upcomingEvents.map((event) => (
+                <Link key={event.id} href={`/dashboard/events/${event.id}`}>
+                  <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                      <Calendar className="h-4 w-4 text-indigo-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{event.title}</p>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(event.date), "dd MMM yyyy")}
+                        {event.location && (
+                          <>
+                            <MapPin className="h-3 w-3 ml-1" />
+                            <span className="truncate">{event.location}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-24 text-slate-500 text-sm">
+              No upcoming events
+            </div>
+          )}
+        </div>
+
+        {/* Recent Transactions */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-emerald-400" />
+              Recent Transactions
+            </h3>
+            <Link href="/dashboard/transactions" className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+              View all <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {recentTransactions.length > 0 ? (
+            <div className="space-y-3">
+              {recentTransactions.map((tx) => (
+                <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/20">
+                  <div className={cn(
+                    "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+                    tx.direction === "received" ? "bg-emerald-500/10" : "bg-orange-500/10"
+                  )}>
+                    {tx.direction === "received" ? (
+                      <TrendingDown className="h-4 w-4 text-emerald-400" />
+                    ) : (
+                      <TrendingUp className="h-4 w-4 text-orange-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{tx.contributorName}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {tx.event?.title || "Event"} · {format(new Date(tx.createdAt), "dd MMM")}
+                    </p>
+                  </div>
+                  <span className={cn(
+                    "text-sm font-semibold",
+                    tx.direction === "received" ? "text-emerald-400" : "text-orange-400"
+                  )}>
+                    {tx.direction === "received" ? "+" : "−"}₹{tx.amount.toLocaleString("en-IN")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-24 text-slate-500 text-sm">
+              No transactions yet
             </div>
           )}
         </div>

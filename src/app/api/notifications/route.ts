@@ -67,3 +67,21 @@ export async function PUT(req: NextRequest) {
     }
 }
 
+export async function DELETE() {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        await db
+            .delete(notifications)
+            .where(eq(notifications.userId, session.user.id));
+
+        return NextResponse.json({ message: "All notifications cleared" });
+    } catch (error) {
+        console.error("Error clearing notifications:", error);
+        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
+

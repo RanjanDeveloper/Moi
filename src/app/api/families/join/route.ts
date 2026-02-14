@@ -71,6 +71,14 @@ export async function POST(req: NextRequest) {
             message: `${joiner?.name || "Someone"} joined ${family.name}`,
         });
 
+        // Notify the joiner
+        await createNotification({
+            userId: session.user.id,
+            type: "family_invite",
+            title: "Welcome!",
+            message: `You joined ${family.name}. You can now view and add entries.`,
+        });
+
         return NextResponse.json(
             { message: "Successfully joined family", family },
             { status: 200 }

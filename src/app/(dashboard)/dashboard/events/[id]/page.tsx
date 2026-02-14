@@ -36,6 +36,8 @@ import {
   ArrowUpDown,
   ToggleLeft,
   ToggleRight,
+  Clock,
+  Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -409,6 +411,52 @@ export default function EventDetailPage() {
         </div>
       </div>
 
+      {/* Recent Activity Timeline */}
+      {transactions.length > 0 && (
+        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+          <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+            <Clock className="h-4 w-4 text-indigo-400" />
+            Recent Activity
+          </h3>
+          <div className="relative pl-4 border-l border-slate-800 space-y-6">
+            {[...transactions]
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 5)
+              .map((tx) => (
+                <div key={tx.id} className="relative">
+                  <span
+                    className={cn(
+                      "absolute -left-[21px] top-1.5 h-2.5 w-2.5 rounded-full ring-4 ring-slate-950",
+                      tx.direction === "received" ? "bg-emerald-500" : "bg-orange-500"
+                    )}
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-500 mb-0.5">
+                      {format(new Date(tx.createdAt), "MMM d, h:mm a")}
+                    </span>
+                    <p className="text-sm text-slate-300">
+                      <span className="font-medium text-white">
+                        {tx.contributorName}
+                      </span>{" "}
+                      {tx.direction === "received" ? "contributed" : "received"}{" "}
+                      <span
+                        className={cn(
+                          "font-medium",
+                          tx.direction === "received"
+                            ? "text-emerald-400"
+                            : "text-orange-400"
+                        )}
+                      >
+                        ₹{tx.amount.toLocaleString("en-IN")}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
@@ -430,6 +478,11 @@ export default function EventDetailPage() {
         <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800" onClick={handleExport}>
           <Download className="h-3.5 w-3.5 mr-1" />
           CSV
+        </Button>
+
+        <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800" onClick={() => window.print()}>
+          <Printer className="h-3.5 w-3.5 mr-1" />
+          Print / PDF
         </Button>
 
         <label>

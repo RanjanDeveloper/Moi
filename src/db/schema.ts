@@ -173,10 +173,29 @@ export const notifications = pgTable(
   ]
 );
 
+// ─── Favorite Events ───────────────────────────────────
+export const favoriteEvents = pgTable(
+  "favorite_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => events.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("unique_user_event_favorite").on(table.userId, table.eventId),
+  ]
+);
+
 // ─── Relations ─────────────────────────────────────────
 export const usersRelations = relations(users, ({ many }) => ({
   memberships: many(memberships),
   notifications: many(notifications),
+  favorites: many(favoriteEvents),
 }));
 
 export const familiesRelations = relations(families, ({ one, many }) => ({
@@ -215,4 +234,9 @@ export const contributionHistoryRelations = relations(contributionHistory, ({ on
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, { fields: [notifications.userId], references: [users.id] }),
   family: one(families, { fields: [notifications.familyId], references: [families.id] }),
+}));
+
+export const favoriteEventsRelations = relations(favoriteEvents, ({ one }) => ({
+  user: one(users, { fields: [favoriteEvents.userId], references: [users.id] }),
+  event: one(events, { fields: [favoriteEvents.eventId], references: [events.id] }),
 }));

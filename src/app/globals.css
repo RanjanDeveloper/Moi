@@ -119,10 +119,53 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
-    @apply bg-background text-foreground;
   }
+}
+
+@media print {
+  aside, nav, button, .no-print, header {
+    display: none !important;
+  }
+  
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Ensure text is dark and background is white */
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  * {
+    color: black !important;
+    border-color: #ddd !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Force background colors on badges/charts */
+  .bg-emerald-500\/10 { background-color: #ecfdf5 !important; }
+  .bg-orange-500\/10 { background-color: #fff7ed !important; }
+  .bg-indigo-500\/10 { background-color: #eef2ff !important; }
+  .bg-purple-500\/10 { background-color: #faf5ff !important; }
+  
+  /* Layout adjustments */
+  .grid {
+    display: block !important;
+  }
+  .grid > * {
+    margin-bottom: 2rem !important;
+    page-break-inside: avoid !important;
+  }
+  
+  /* Improve table/list readability */
+  .text-white { color: black !important; }
+  .text-slate-300, .text-slate-400, .text-slate-500 { color: #444 !important; }
 }

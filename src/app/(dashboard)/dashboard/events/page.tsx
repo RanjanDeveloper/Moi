@@ -50,30 +50,74 @@ interface Event {
 
 export default function EventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "favorites">("all");
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/events");
-        if (res.ok) {
-          setEvents(await res.json());
+        const [eventsRes, favRes] = await Promise.all([
+          fetch("/api/events"),
+          fetch("/api/favorites"),
+        ]);
+        if (eventsRes.ok) setEvents(await eventsRes.json());
+        if (favRes.ok) {
+          const favIds: string[] = await favRes.json();
+          setFavoriteIds(new Set(favIds));
         }
       } catch (error) {
-        console.error("Error fetching events:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchEvents();
+    fetchData();
   }, []);
 
-  const filtered = events.filter(
-    (e) =>
-      e.title.toLowerCase().includes(search.toLowerCase()) ||
-      e.type.toLowerCase().includes(search.toLowerCase())
-  );
+  const toggleFavorite = async (e: React.MouseEvent, eventId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Optimistic update
+    setFavoriteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) {
+        next.delete(eventId);
+      } else {
+        next.add(eventId);
+      }
+      return next;
+    });
+
+    try {
+      await fetch("/api/favorites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+    } catch {
+      // Revert on error
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(eventId)) {
+          next.delete(eventId);
+        } else {
+          next.add(eventId);
+        }
+        return next;
+      });
+    }
+  };
+
+  const filtered = events
+    .filter(
+      (e) =>
+        e.title.toLowerCase().includes(search.toLowerCase()) ||
+        e.type.toLowerCase().includes(search.toLowerCase())
+    )
+    .filter((e) => (filter === "favorites" ? favoriteIds.has(e.id) : true));
 
   return (
     <div className="space-y-6">
@@ -87,15 +131,34 @@ export default function EventsPage() {
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-        <Input
-          placeholder="Search events..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 bg-slate-900/50 border-slate-800 text-white placeholder:text-slate-500 h-11"
-        />
+      {/* Search + Filter */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Input
+            placeholder="Search events..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-10 bg-slate-900/50 border-slate-800 text-white placeholder:text-slate-500 h-11"
+          />
+        </div>
+        <Button
+          variant={filter === "all" ? "secondary" : "ghost"}
+          size="sm"
+          onClick={() => setFilter("all")}
+          className="text-slate-300 h-11 px-4"
+        >
+          All
+        </Button>
+        <Button
+          variant={filter === "favorites" ? "secondary" : "ghost"}
+          size="sm"
+          onClick={() => setFilter("favorites")}
+          className="text-slate-300 h-11 px-4"
+        >
+          <Heart className={cn("h-4 w-4 mr-1", filter === "favorites" && "fill-pink-500 text-pink-500")} />
+          Favorites
+        </Button>
       </div>
 
       {/* Events Grid */}
@@ -110,26 +173,58 @@ export default function EventsPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Calendar className="h-12 w-12 text-slate-600 mb-4" />
-          <h3 className="text-lg font-medium text-slate-300 mb-1">No events yet</h3>
-          <p className="text-sm text-slate-500 mb-4">
-            Create your first event to start tracking contributions
-          </p>
-          <Link href="/dashboard/events/new">
-            <Button className="bg-indigo-600 hover:bg-indigo-500">
-              <Plus className="h-4 w-4 mr-1" />
-              Create Event
-            </Button>
-          </Link>
+          {filter === "favorites" ? (
+            <>
+              <Heart className="h-12 w-12 text-slate-600 mb-4" />
+              <h3 className="text-lg font-medium text-slate-300 mb-1">No favorites yet</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                Click the heart icon on events to add them to favorites
+              </p>
+              <Button onClick={() => setFilter("all")} variant="outline" className="border-slate-700 text-slate-300">
+                View all events
+              </Button>
+            </>
+          ) : (
+            <>
+              <Calendar className="h-12 w-12 text-slate-600 mb-4" />
+              <h3 className="text-lg font-medium text-slate-300 mb-1">No events yet</h3>
+              <p className="text-sm text-slate-500 mb-4">
+                Create your first event to start tracking contributions
+              </p>
+              <Link href="/dashboard/events/new">
+                <Button className="bg-indigo-600 hover:bg-indigo-500">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Create Event
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((event) => {
             const Icon = typeIcons[event.type] || Star;
+            const isFav = favoriteIds.has(event.id);
             return (
               <Link key={event.id} href={`/dashboard/events/${event.id}`}>
-                <div className="group rounded-2xl border border-slate-800 bg-slate-900/50 p-5 hover:border-indigo-500/30 hover:bg-slate-900/80 transition-all duration-200 cursor-pointer">
-                  <div className="flex items-start justify-between mb-3">
+                <div className="group rounded-2xl border border-slate-800 bg-slate-900/50 p-5 hover:border-indigo-500/30 hover:bg-slate-900/80 transition-all duration-200 cursor-pointer relative">
+                  {/* Favorite button */}
+                  <button
+                    onClick={(e) => toggleFavorite(e, event.id)}
+                    className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-slate-800/80 transition-colors z-10"
+                    title={isFav ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <Heart
+                      className={cn(
+                        "h-4 w-4 transition-all",
+                        isFav
+                          ? "fill-pink-500 text-pink-500 scale-110"
+                          : "text-slate-600 hover:text-pink-400"
+                      )}
+                    />
+                  </button>
+
+                  <div className="flex items-start justify-between mb-3 pr-8">
                     <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", typeColors[event.type]?.split(" ")[0] || "bg-slate-800")}>
                       <Icon className="h-5 w-5" />
                     </div>
