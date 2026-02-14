@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { StatCard } from "@/components/stat-card";
 import {
@@ -57,44 +57,30 @@ interface RecentTransaction {
 }
 
 export default function DashboardPage() {
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
-  const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEvent[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<RecentTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: analytics, error: analyticsError, isLoading: analyticsLoading } = useSWR<Analytics>("/api/analytics");
+  const { data: eventsRes, error: eventsError, isLoading: eventsLoading } = useSWR("/api/events");
+  const { data: txRes, error: txError, isLoading: txLoading } = useSWR("/api/transactions?sortBy=createdAt&sortOrder=desc");
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [analyticsRes, eventsRes, txRes] = await Promise.all([
-          fetch("/api/analytics"),
-          fetch("/api/events"),
-          fetch("/api/transactions?sortBy=createdAt&sortOrder=desc"),
-        ]);
+  const loading = analyticsLoading || eventsLoading || txLoading;
+  const error = analyticsError || eventsError || txError;
 
-        if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
-        if (eventsRes.ok) {
-          const res = await eventsRes.json();
-          const events = res.data || res;
-          const now = new Date();
-          const upcoming = events
-            .filter((e: UpcomingEvent) => new Date(e.date) >= now && e.status === "open")
-            .sort((a: UpcomingEvent, b: UpcomingEvent) => new Date(a.date).getTime() - new Date(b.date).getTime())
-            .slice(0, 3);
-          setUpcomingEvents(upcoming);
-        }
-        if (txRes.ok) {
-          const res = await txRes.json();
-          const txs = res.data || res;
-          setRecentTransactions(txs.slice(0, 5));
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAll();
-  }, []);
+  // Derive upcoming events
+  const upcomingEvents: UpcomingEvent[] = (() => {
+    if (!eventsRes) return [];
+    const events = eventsRes.data || eventsRes;
+    const now = new Date();
+    return events
+      .filter((e: UpcomingEvent) => new Date(e.date) >= now && e.status === "open")
+      .sort((a: UpcomingEvent, b: UpcomingEvent) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 3);
+  })();
+
+  // Derive recent transactions
+  const recentTransactions: RecentTransaction[] = (() => {
+    if (!txRes) return [];
+    const txs = txRes.data || txRes;
+    return txs.slice(0, 5);
+  })();
 
   if (loading) {
     return (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,43 +32,35 @@ interface Transaction {
 
 export default function TransactionsPage() {
   const { openContributorHistory } = useContributorHistory();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortBy, setSortBy] = useState<"amount" | "createdAt" | "contributorName">("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
-  const fetchTransactions = useCallback(async () => {
-    try {
-      const params = new URLSearchParams({
-        sortBy,
-        sortOrder,
-        page: currentPage.toString(),
-        limit: "10",
-        ...(search && { search }),
-      });
-      const res = await fetch(`/api/transactions?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setTransactions(data.data);
-        setTotalPages(data.meta.totalPages);
-      }
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [search, sortBy, sortOrder, currentPage]);
 
   useEffect(() => {
-    // Debounce search
     const timer = setTimeout(() => {
-      fetchTransactions();
+      setDebouncedSearch(search);
+      setCurrentPage(1); // Reset page on search
     }, 300);
     return () => clearTimeout(timer);
-  }, [fetchTransactions]);
+  }, [search]);
+
+  const params = new URLSearchParams({
+    sortBy,
+    sortOrder,
+    page: currentPage.toString(),
+    limit: "10",
+    ...(debouncedSearch && { search: debouncedSearch }),
+  });
+
+  const { data: res, isLoading: loading } = useSWR(`/api/transactions?${params}`);
+  
+  const transactions: Transaction[] = res?.data || [];
+  const totalPages = res?.meta?.totalPages || 1;
+
+
+
 
   const toggleSort = (field: "amount" | "createdAt" | "contributorName") => {
     if (sortBy === field) {

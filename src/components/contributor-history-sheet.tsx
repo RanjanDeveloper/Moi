@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { format } from "date-fns";
 import { Loader2, ArrowRight } from "lucide-react";
 import {
@@ -35,30 +35,13 @@ export function ContributorHistorySheet({
   isOpen,
   onClose,
 }: ContributorHistorySheetProps) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { data: res, isLoading: loading } = useSWR(
+    isOpen && contributorName
+      ? `/api/transactions?contributorName=${encodeURIComponent(contributorName)}&limit=100`
+      : null
+  );
 
-  useEffect(() => {
-    if (isOpen && contributorName) {
-      const fetchHistory = async () => {
-        setLoading(true);
-        try {
-          const res = await fetch(
-            `/api/transactions?contributorName=${encodeURIComponent(contributorName)}&limit=100`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            setTransactions(data.data);
-          }
-        } catch (error) {
-          console.error("Error fetching history:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchHistory();
-    }
-  }, [isOpen, contributorName]);
+  const transactions: Transaction[] = res?.data || [];
 
   const totalReceived = transactions
     .filter((t) => t.direction === "received")
@@ -70,7 +53,7 @@ export function ContributorHistorySheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="bg-slate-900 border-l border-slate-800 text-white w-full sm:max-w-md overflow-y-auto">
+      <SheetContent className="bg-slate-900 border-l border-slate-800 text-white w-full sm:max-w-md overflow-y-auto p-6">
         <SheetHeader className="mb-6">
           <SheetTitle className="text-xl font-bold text-white">
             {contributorName}
