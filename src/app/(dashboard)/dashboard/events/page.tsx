@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Pagination } from "@/components/ui/pagination";
+
 
 const typeIcons: Record<string, React.ElementType> = {
   wedding: Gift,
@@ -55,15 +57,25 @@ export default function EventsPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "favorites">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const params = new URLSearchParams({
+          page: currentPage.toString(),
+          limit: "12",
+        });
         const [eventsRes, favRes] = await Promise.all([
-          fetch("/api/events"),
+          fetch(`/api/events?${params}`),
           fetch("/api/favorites"),
         ]);
-        if (eventsRes.ok) setEvents(await eventsRes.json());
+        if (eventsRes.ok) {
+          const data = await eventsRes.json();
+          setEvents(data.data);
+          setTotalPages(data.meta.totalPages);
+        }
         if (favRes.ok) {
           const favIds: string[] = await favRes.json();
           setFavoriteIds(new Set(favIds));
@@ -75,7 +87,7 @@ export default function EventsPage() {
       }
     };
     fetchData();
-  }, []);
+  }, [currentPage]);
 
   const toggleFavorite = async (e: React.MouseEvent, eventId: string) => {
     e.preventDefault();
@@ -268,6 +280,16 @@ export default function EventsPage() {
             );
           })}
         </div>
+      )}
+
+
+      {!loading && events.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          isLoading={loading}
+        />
       )}
     </div>
   );

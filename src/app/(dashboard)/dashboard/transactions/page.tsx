@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { Pagination } from "@/components/ui/pagination";
 
 interface Transaction {
   id: string;
@@ -33,24 +34,30 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"amount" | "createdAt" | "contributorName">("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchTransactions = useCallback(async () => {
     try {
       const params = new URLSearchParams({
         sortBy,
         sortOrder,
+        page: currentPage.toString(),
+        limit: "10",
         ...(search && { search }),
       });
       const res = await fetch(`/api/transactions?${params}`);
       if (res.ok) {
-        setTransactions(await res.json());
+        const data = await res.json();
+        setTransactions(data.data);
+        setTotalPages(data.meta.totalPages);
       }
     } catch (error) {
       console.error("Error fetching transactions:", error);
     } finally {
       setLoading(false);
     }
-  }, [search, sortBy, sortOrder]);
+  }, [search, sortBy, sortOrder, currentPage]);
 
   useEffect(() => {
     // Debounce search
@@ -175,6 +182,14 @@ export default function TransactionsPage() {
             </div>
           ))}
         </div>
+      )}
+      {!loading && transactions.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          isLoading={loading}
+        />
       )}
     </div>
   );

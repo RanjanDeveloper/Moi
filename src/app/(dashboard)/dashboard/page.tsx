@@ -72,7 +72,8 @@ export default function DashboardPage() {
 
         if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
         if (eventsRes.ok) {
-          const events = await eventsRes.json();
+          const res = await eventsRes.json();
+          const events = res.data || res;
           const now = new Date();
           const upcoming = events
             .filter((e: UpcomingEvent) => new Date(e.date) >= now && e.status === "open")
@@ -81,7 +82,8 @@ export default function DashboardPage() {
           setUpcomingEvents(upcoming);
         }
         if (txRes.ok) {
-          const txs = await txRes.json();
+          const res = await txRes.json();
+          const txs = res.data || res;
           setRecentTransactions(txs.slice(0, 5));
         }
       } catch (error) {

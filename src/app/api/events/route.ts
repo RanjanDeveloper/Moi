@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { events, memberships } from "@/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, count } from "drizzle-orm";
 import { z } from "zod";
 
 const createEventSchema = z.object({
@@ -23,6 +23,9 @@ export async function GET(req: NextRequest) {
 
         const { searchParams } = new URL(req.url);
         const familyId = searchParams.get("familyId");
+        const page = parseInt(searchParams.get("page") || "1");
+        const limit = parseInt(searchParams.get("limit") || "50"); // Default 50 for backward compat
+        const offset = (page - 1) * limit;
 
         // Get user's family IDs
         const userMemberships = await db.query.memberships.findMany({
@@ -32,23 +35,42 @@ export async function GET(req: NextRequest) {
         const familyIds = userMemberships.map((m) => m.familyId);
 
         if (familyIds.length === 0) {
-            return NextResponse.json([]);
+            return NextResponse.json({ data: [], meta: { total: 0, page, limit, totalPages: 0 } });
         }
 
         const filterFamilyId = familyId && familyIds.includes(familyId) ? familyId : null;
 
+        const conditions = filterFamilyId
+            ? eq(events.familyId, filterFamilyId)
+            : inArray(events.familyId, familyIds);
+
+        // Get total count
+        const totalCountRes = await db
+            .select({ count: count() })
+            .from(events)
+            .where(conditions);
+        const total = totalCountRes[0].count;
+
         const eventList = await db.query.events.findMany({
-            where: filterFamilyId
-                ? eq(events.familyId, filterFamilyId)
-                : inArray(events.familyId, familyIds),
+            where: conditions,
             orderBy: [desc(events.date)],
+            limit,
+            offset,
             with: {
                 family: { columns: { name: true } },
                 creator: { columns: { name: true } },
             },
         });
 
-        return NextResponse.json(eventList);
+        return NextResponse.json({
+            data: eventList,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
     } catch (error) {
         console.error("Error fetching events:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -99,4 +121,3 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
-

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { moiTransactions, memberships, contributionHistory, events } from "@/db/schema";
 import { createNotification } from "@/lib/notifications";
-import { eq, and, desc, asc, inArray, ilike } from "drizzle-orm";
+import { eq, and, desc, asc, inArray, ilike, count } from "drizzle-orm";
 import { z } from "zod";
 
 const createTransactionSchema = z.object({
@@ -30,6 +30,9 @@ export async function GET(req: NextRequest) {
         const sortBy = searchParams.get("sortBy") || "createdAt";
         const sortOrder = searchParams.get("sortOrder") || "desc";
         const direction = searchParams.get("direction");
+        const page = parseInt(searchParams.get("page") || "1");
+        const limit = parseInt(searchParams.get("limit") || "50"); // Default 50 for backward compat
+        const offset = (page - 1) * limit;
 
         // Get user's family IDs
         const userMemberships = await db.query.memberships.findMany({
@@ -70,15 +73,31 @@ export async function GET(req: NextRequest) {
                     ? moiTransactions.contributorName
                     : moiTransactions.createdAt;
 
+        const [totalCountRes] = await db
+            .select({ count: count() })
+            .from(moiTransactions)
+            .where(and(...conditions));
+        const total = totalCountRes.count;
+
         const results = await db.query.moiTransactions.findMany({
             where: and(...conditions),
             orderBy: [orderFn(orderColumn)],
+            limit,
+            offset,
             with: {
                 event: { columns: { title: true, date: true } },
             },
         });
 
-        return NextResponse.json(results);
+        return NextResponse.json({
+            data: results,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
     } catch (error) {
         console.error("Error fetching transactions:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

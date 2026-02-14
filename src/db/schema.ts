@@ -94,6 +94,8 @@ export const events = pgTable(
   (table) => [
     index("idx_events_family").on(table.familyId),
     index("idx_events_date").on(table.date),
+    index("idx_events_created_at").on(table.createdAt),
+    index("idx_events_status").on(table.status),
   ]
 );
 
@@ -123,6 +125,8 @@ export const moiTransactions = pgTable(
     index("idx_transactions_event").on(table.eventId),
     index("idx_transactions_family").on(table.familyId),
     index("idx_transactions_contributor").on(table.contributorName),
+    index("idx_transactions_date").on(table.createdAt),
+    index("idx_transactions_direction").on(table.direction),
   ]
 );
 
