@@ -15,12 +15,13 @@ import {
   PartyPopper,
   Flame,
   Star,
+  Gift,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const typeIcons: Record<string, React.ElementType> = {
-  wedding: Heart,
+  wedding: Gift,
   housewarming: Home,
   festival: PartyPopper,
   funeral: Flame,

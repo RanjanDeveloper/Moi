@@ -37,7 +37,6 @@ import {
   ToggleLeft,
   ToggleRight,
   Clock,
-  Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -480,10 +479,7 @@ export default function EventDetailPage() {
           CSV
         </Button>
 
-        <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800" onClick={() => window.print()}>
-          <Printer className="h-3.5 w-3.5 mr-1" />
-          Print / PDF
-        </Button>
+
 
         <label>
           <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
