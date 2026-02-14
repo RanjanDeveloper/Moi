@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import useSWR, { mutate } from "swr";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -75,16 +76,6 @@ interface EventDetail {
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [event, setEvent] = useState<EventDetail | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [txLoading, setTxLoading] = useState(false);
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"amount" | "createdAt" | "contributorName">("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); // Default sort for API
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const { openContributorHistory } = useContributorHistory();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -97,55 +88,43 @@ export default function EventDetailPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
+  
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"amount" | "createdAt" | "contributorName">("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); 
+  const [currentPage, setCurrentPage] = useState(1);
+  const { openContributorHistory } = useContributorHistory();
 
-  const fetchEvent = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/events/${params.id}`);
-      if (res.ok) {
-        setEvent(await res.json());
-      }
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [params.id]);
-
-  const fetchTransactions = useCallback(async () => {
-    setTxLoading(true);
-    try {
-      const query = new URLSearchParams({
-        eventId: params.id as string,
-        page: currentPage.toString(),
-        limit: "10",
-        sortBy,
-        sortOrder,
-        search
-      });
-      const res = await fetch(`/api/transactions?${query}`);
-      if (res.ok) {
-        const data = await res.json();
-        setTransactions(data.data);
-        setTotalPages(data.meta.totalPages);
-      }
-    } catch (error) {
-      console.error("Error fetching transactions:", error);
-    } finally {
-      setTxLoading(false);
-    }
-  }, [params.id, currentPage, sortBy, sortOrder, search]);
-
+  // Debounce search
   useEffect(() => {
-    fetchEvent();
-  }, [fetchEvent]);
+     const timer = setTimeout(() => {
+       setDebouncedSearch(search);
+       setCurrentPage(1);
+     }, 300);
+     return () => clearTimeout(timer);
+  }, [search]);
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+  // SWR: Fetch Event
+  const eventKey = params.id ? `/api/events/${params.id}` : null;
+  const { data: event, isLoading: eventLoading, mutate: mutateEvent } = useSWR<EventDetail>(eventKey);
+  
+  // SWR: Fetch Transactions
+  const txQuery = new URLSearchParams({
+    eventId: params.id as string,
+    page: currentPage.toString(),
+    limit: "10",
+    sortBy,
+    sortOrder,
+    ...(debouncedSearch && { search: debouncedSearch }),
+  });
+  const txKey = params.id ? `/api/transactions?${txQuery.toString()}` : null;
+  const { data: txRes, isLoading: txLoading, mutate: mutateTransactions } = useSWR(txKey);
 
-  useEffect(() => {
-    fetchEvent();
-  }, [fetchEvent]);
+  const transactions: Transaction[] = txRes?.data || [];
+  const totalPages = txRes?.meta?.totalPages || 1;
+  const loading = eventLoading;
+
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,8 +151,8 @@ export default function EventDetailPage() {
         setAddDialogOpen(false);
         setTxForm({ contributorName: "", amount: "", notes: "", direction: "received", paidStatus: false });
         setTxForm({ contributorName: "", amount: "", notes: "", direction: "received", paidStatus: false });
-        fetchEvent(); // Refresh stats
-        fetchTransactions(); // Refresh list
+        mutateEvent(); // Refresh stats
+        mutateTransactions(); // Refresh list
       } else {
         const data = await res.json();
         toast.error(data.error || "Failed to add entry");
@@ -208,8 +187,8 @@ export default function EventDetailPage() {
         setEditDialogOpen(false);
         setEditingTx(null);
         setEditingTx(null);
-        fetchEvent();
-        fetchTransactions();
+        mutateEvent();
+        mutateTransactions();
       }
     } catch {
       toast.error("Something went wrong");
@@ -225,8 +204,8 @@ export default function EventDetailPage() {
       if (res.ok) {
         toast.success("Entry deleted");
         toast.success("Entry deleted");
-        fetchEvent();
-        fetchTransactions();
+        mutateEvent();
+        mutateTransactions();
       }
     } catch {
       toast.error("Failed to delete");
@@ -245,7 +224,7 @@ export default function EventDetailPage() {
       });
       if (res.ok) {
         toast.success(`Event ${newStatus === "open" ? "reopened" : "closed"}`);
-        fetchEvent();
+        mutateEvent();
       } else {
         toast.error("Failed to update status");
       }
@@ -291,8 +270,8 @@ export default function EventDetailPage() {
           if (data.errors?.length > 0) {
             toast.warning(`${data.errors.length} entries had issues`);
           }
-          fetchEvent();
-          fetchTransactions();
+          mutateEvent();
+          mutateTransactions();
         } catch {
           toast.error("Import failed");
         }

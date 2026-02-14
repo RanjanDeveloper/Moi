@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useSWR, { mutate } from "swr";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,57 +53,47 @@ interface Event {
 }
 
 export default function EventsPage() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "favorites">("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
+  
+  // Debounce search
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const params = new URLSearchParams({
-          page: currentPage.toString(),
-          limit: "12",
-        });
-        const [eventsRes, favRes] = await Promise.all([
-          fetch(`/api/events?${params}`),
-          fetch("/api/favorites"),
-        ]);
-        if (eventsRes.ok) {
-          const data = await eventsRes.json();
-          setEvents(data.data);
-          setTotalPages(data.meta.totalPages);
-        }
-        if (favRes.ok) {
-          const favIds: string[] = await favRes.json();
-          setFavoriteIds(new Set(favIds));
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [currentPage]);
+     const timer = setTimeout(() => {
+       setDebouncedSearch(search);
+       setCurrentPage(1);
+     }, 300);
+     return () => clearTimeout(timer);
+  }, [search]);
+
+  const params = new URLSearchParams({
+    page: currentPage.toString(),
+    limit: "12",
+  });
+
+  const { data: eventsRes, isLoading: eventsLoading } = useSWR(`/api/events?${params}`);
+  const { data: favorites, isLoading: favLoading } = useSWR<string[]>("/api/favorites");
+
+  const events: Event[] = eventsRes?.data || [];
+  const totalPages = eventsRes?.meta?.totalPages || 1;
+  const favoriteIds = new Set(favorites || []);
+  const loading = eventsLoading || favLoading;
 
   const toggleFavorite = async (e: React.MouseEvent, eventId: string) => {
     e.preventDefault();
     e.stopPropagation();
 
+    const newFavorites = new Set(favoriteIds);
+    if (newFavorites.has(eventId)) {
+      newFavorites.delete(eventId);
+    } else {
+      newFavorites.add(eventId);
+    }
+    const newFavArray = Array.from(newFavorites);
+
     // Optimistic update
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(eventId)) {
-        next.delete(eventId);
-      } else {
-        next.add(eventId);
-      }
-      return next;
-    });
+    mutate("/api/favorites", newFavArray, false);
 
     try {
       await fetch("/api/favorites", {
@@ -110,17 +101,9 @@ export default function EventsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ eventId }),
       });
+      mutate("/api/favorites");
     } catch {
-      // Revert on error
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        if (next.has(eventId)) {
-          next.delete(eventId);
-        } else {
-          next.add(eventId);
-        }
-        return next;
-      });
+      mutate("/api/favorites");
     }
   };
 
