@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import useSWR, { mutate } from "swr";
 import Link from "next/link";
+import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import {
   Flame,
   Star,
   Gift,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -52,24 +54,42 @@ interface Event {
   transactions?: unknown[];
 }
 
-export default function EventsPage() {
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "favorites">("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  
-  // Debounce search
+function EventsContent() {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const { replace } = useRouter();
+
+  // URL State
+  const currentPage = Number(searchParams.get("page")) || 1;
+  const filter = (searchParams.get("filter") as "all" | "favorites") || "all";
+  const urlSearch = searchParams.get("search") || "";
+
+  // Local state for input
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
+
+  // Debounce sync to URL
   useEffect(() => {
-     const timer = setTimeout(() => {
-       setDebouncedSearch(search);
-       setCurrentPage(1);
-     }, 300);
-     return () => clearTimeout(timer);
-  }, [search]);
+    const timer = setTimeout(() => {
+      if (searchTerm !== urlSearch) {
+        const params = new URLSearchParams(searchParams);
+        if (searchTerm) params.set("search", searchTerm);
+        else params.delete("search");
+        params.set("page", "1");
+        replace(`${pathname}?${params.toString()}`);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm, urlSearch, searchParams, pathname, replace]);
+
+  // Sync local state if URL changes externally
+  useEffect(() => {
+    setSearchTerm(urlSearch);
+  }, [urlSearch]);
 
   const params = new URLSearchParams({
     page: currentPage.toString(),
     limit: "12",
+    ...(urlSearch && { search: urlSearch }),
   });
 
   const { data: eventsRes, isLoading: eventsLoading } = useSWR(`/api/events?${params}`);
@@ -108,12 +128,20 @@ export default function EventsPage() {
   };
 
   const filtered = events
-    .filter(
-      (e) =>
-        e.title.toLowerCase().includes(search.toLowerCase()) ||
-        e.type.toLowerCase().includes(search.toLowerCase())
-    )
     .filter((e) => (filter === "favorites" ? favoriteIds.has(e.id) : true));
+
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", page.toString());
+    replace(`${pathname}?${params.toString()}`);
+  };
+
+  const handleFilterChange = (newFilter: "all" | "favorites") => {
+    const params = new URLSearchParams(searchParams);
+    params.set("filter", newFilter);
+    params.set("page", "1");
+    replace(`${pathname}?${params.toString()}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -133,15 +161,15 @@ export default function EventsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
             placeholder="Search events..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-slate-900/50 border-slate-800 text-white placeholder:text-slate-500 h-11"
           />
         </div>
         <Button
           variant={filter === "all" ? "secondary" : "ghost"}
           size="sm"
-          onClick={() => setFilter("all")}
+          onClick={() => handleFilterChange("all")}
           className="text-slate-300 h-11 px-4"
         >
           All
@@ -149,7 +177,7 @@ export default function EventsPage() {
         <Button
           variant={filter === "favorites" ? "secondary" : "ghost"}
           size="sm"
-          onClick={() => setFilter("favorites")}
+          onClick={() => handleFilterChange("favorites")}
           className="text-slate-300 h-11 px-4"
         >
           <Heart className={cn("h-4 w-4 mr-1", filter === "favorites" && "fill-pink-500 text-pink-500")} />
@@ -176,7 +204,7 @@ export default function EventsPage() {
               <p className="text-sm text-slate-500 mb-4">
                 Click the heart icon on events to add them to favorites
               </p>
-              <Button onClick={() => setFilter("all")} variant="outline" className="border-slate-700 text-slate-300">
+              <Button onClick={() => handleFilterChange("all")} variant="outline" className="border-slate-700 text-slate-300">
                 View all events
               </Button>
             </>
@@ -270,10 +298,18 @@ export default function EventsPage() {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={handlePageChange}
           isLoading={loading}
         />
       )}
     </div>
+  );
+}
+
+export default function EventsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-indigo-500" /></div>}>
+      <EventsContent />
+    </Suspense>
   );
 }

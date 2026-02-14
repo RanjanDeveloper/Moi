@@ -21,7 +21,6 @@ import {
   Crown,
   UserPlus,
   Loader2,
-  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -86,6 +85,7 @@ export default function FamilyPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchFamilies();
   }, []);

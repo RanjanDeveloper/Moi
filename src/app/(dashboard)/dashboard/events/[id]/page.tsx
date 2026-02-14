@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import useSWR, { mutate } from "swr";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import useSWR from "swr";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,9 +73,18 @@ interface EventDetail {
   transactionCount: number;
 }
 
-export default function EventDetailPage() {
+function EventDetailContent() {
   const params = useParams();
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const { replace } = useRouter();
+
+  // URL State
+  const currentPage = Number(searchParams.get("page")) || 1;
+  const sortBy = (searchParams.get("sortBy") as "amount" | "createdAt" | "contributorName") || "createdAt";
+  const sortOrder = (searchParams.get("sortOrder") as "asc" | "desc") || "desc";
+  const urlSearch = searchParams.get("search") || "";
+
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -89,21 +98,29 @@ export default function EventDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
   
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"amount" | "createdAt" | "contributorName">("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); 
-  const [currentPage, setCurrentPage] = useState(1);
+  // Local search state for input
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
+  
   const { openContributorHistory } = useContributorHistory();
 
-  // Debounce search
+  // Debounce sync to URL
   useEffect(() => {
-     const timer = setTimeout(() => {
-       setDebouncedSearch(search);
-       setCurrentPage(1);
-     }, 300);
-     return () => clearTimeout(timer);
-  }, [search]);
+    const timer = setTimeout(() => {
+      if (searchTerm !== urlSearch) {
+        const params = new URLSearchParams(searchParams);
+        if (searchTerm) params.set("search", searchTerm);
+        else params.delete("search");
+        params.set("page", "1"); // Reset page on search
+        replace(`${pathname}?${params.toString()}`);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm, urlSearch, searchParams, pathname, replace]);
+
+  // Sync local state if URL changes externally
+  useEffect(() => {
+    setSearchTerm(urlSearch);
+  }, [urlSearch]);
 
   // SWR: Fetch Event
   const eventKey = params.id ? `/api/events/${params.id}` : null;
@@ -116,7 +133,7 @@ export default function EventDetailPage() {
     limit: "10",
     sortBy,
     sortOrder,
-    ...(debouncedSearch && { search: debouncedSearch }),
+    ...(urlSearch && { search: urlSearch }),
   });
   const txKey = params.id ? `/api/transactions?${txQuery.toString()}` : null;
   const { data: txRes, isLoading: txLoading, mutate: mutateTransactions } = useSWR(txKey);
@@ -124,7 +141,6 @@ export default function EventDetailPage() {
   const transactions: Transaction[] = txRes?.data || [];
   const totalPages = txRes?.meta?.totalPages || 1;
   const loading = eventLoading;
-
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +165,6 @@ export default function EventDetailPage() {
       if (res.ok) {
         toast.success("Entry added!");
         setAddDialogOpen(false);
-        setTxForm({ contributorName: "", amount: "", notes: "", direction: "received", paidStatus: false });
         setTxForm({ contributorName: "", amount: "", notes: "", direction: "received", paidStatus: false });
         mutateEvent(); // Refresh stats
         mutateTransactions(); // Refresh list
@@ -186,7 +201,6 @@ export default function EventDetailPage() {
         toast.success("Entry updated!");
         setEditDialogOpen(false);
         setEditingTx(null);
-        setEditingTx(null);
         mutateEvent();
         mutateTransactions();
       }
@@ -202,7 +216,6 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/transactions/${txId}`, { method: "DELETE" });
       if (res.ok) {
-        toast.success("Entry deleted");
         toast.success("Entry deleted");
         mutateEvent();
         mutateTransactions();
@@ -247,13 +260,16 @@ export default function EventDetailPage() {
     Papa.parse(file, {
       header: true,
       complete: async (results) => {
-        const entries = results.data.map((row: any) => ({
-          contributorName: row["Contributor Name"] || row.contributorName || row.name,
-          amount: row["Amount"] || row.amount,
-          direction: row["Direction"] || row.direction || "received",
-          notes: row["Notes"] || row.notes || "",
-          paidStatus: row["Paid"] || row.paidStatus || false,
-        }));
+        const entries = results.data.map((row: unknown) => {
+          const r = row as Record<string, string | number | boolean>;
+          return {
+            contributorName: String(r["Contributor Name"] || r.contributorName || r.name),
+            amount: r["Amount"] || r.amount,
+            direction: r["Direction"] || r.direction || "received",
+            notes: r["Notes"] || r.notes || "",
+            paidStatus: r["Paid"] || r.paidStatus || false,
+          };
+        });
 
         try {
           const res = await fetch("/api/transactions/import", {
@@ -291,6 +307,19 @@ export default function EventDetailPage() {
     setEditDialogOpen(true);
   };
 
+  const handlePageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", page.toString());
+    replace(`${pathname}?${params.toString()}`);
+  };
+
+  const handleSortChange = () => {
+    const newOrder = sortOrder === "asc" ? "desc" : "asc";
+    const params = new URLSearchParams(searchParams);
+    params.set("sortOrder", newOrder);
+    replace(`${pathname}?${params.toString()}`);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -307,13 +336,11 @@ export default function EventDetailPage() {
     );
   }
 
-  // Removed client-side sorting/filtering logic as it is now handled by API
-  
-  // Stats come directly from event
+  // Uses server stats
   const totalReceived = event.totalReceived;
   const totalGiven = event.totalGiven;
 
-  // Inline form JSX — NOT a component to avoid remount/focus loss
+  // Inline form JSX
   const renderFormFields = (onSubmit: (e: React.FormEvent) => void, buttonLabel: string) => (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-2">
@@ -477,14 +504,14 @@ export default function EventDetailPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
             placeholder="Search entries..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-slate-900/50 border-slate-800 text-white placeholder:text-slate-500 h-10"
           />
         </div>
 
         <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800"
-          onClick={() => { setSortOrder(sortOrder === "asc" ? "desc" : "asc"); }}>
+          onClick={handleSortChange}>
           <ArrowUpDown className="h-3.5 w-3.5 mr-1" />
           {sortBy === "amount" ? "Amount" : sortBy === "contributorName" ? "Name" : "Date"}
         </Button>
@@ -493,8 +520,6 @@ export default function EventDetailPage() {
           <Download className="h-3.5 w-3.5 mr-1" />
           CSV
         </Button>
-
-
 
         <label>
           <input type="file" accept=".csv" className="hidden" onChange={handleImport} />
@@ -582,7 +607,7 @@ export default function EventDetailPage() {
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={setCurrentPage}
+          onPageChange={handlePageChange}
           isLoading={txLoading}
         />
       )}
@@ -597,5 +622,13 @@ export default function EventDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function EventDetailPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-indigo-500" /></div>}>
+      <EventDetailContent />
+    </Suspense>
   );
 }

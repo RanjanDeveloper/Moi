@@ -90,7 +90,7 @@ describe('Event Lifecycle Integration', () => {
             };
 
             const contributorName =
-                (csvRow as any)['Contributor Name'] || (csvRow as any).contributorName || (csvRow as any).name;
+                (csvRow as Record<string, unknown>)['Contributor Name'] || (csvRow as Record<string, unknown>).contributorName || (csvRow as Record<string, unknown>).name;
             expect(contributorName).toBe('Rajan Kumar');
         });
     });

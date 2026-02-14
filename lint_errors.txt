@@ -1,0 +1,92 @@
+﻿
+> moi-ledger@0.1.0 lint
+> eslint
+
+
+E:\anti\Moi\src\__tests__\components\landing-page.test.tsx
+  7:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\anti\Moi\src\__tests__\components\sidebar.test.tsx
+  2:26  warning  'fireEvent' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\__tests__\components\stat-card.test.tsx
+  47:13  warning  'container' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\__tests__\integration\event-lifecycle.test.ts
+  93:28   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  93:67   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  93:102  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\events\[id]\page.tsx
+    4:18  warning  'mutate' is defined but never used        @typescript-eslint/no-unused-vars
+  263:48  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\family\page.tsx
+  24:3  warning  'Settings' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+  91:6  warning  React Hook useEffect has a missing dependency: 'fetchFamilies'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\page.tsx
+  11:3   warning  'Receipt' is defined but never used         @typescript-eslint/no-unused-vars
+  28:10  warning  'cn' is defined but never used              @typescript-eslint/no-unused-vars
+  65:9   warning  'error' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\returns\page.tsx
+   4:10  warning  'Badge' is defined but never used         @typescript-eslint/no-unused-vars
+   9:3   warning  'TrendingUp' is defined but never used    @typescript-eslint/no-unused-vars
+  10:3   warning  'TrendingDown' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\settings\page.tsx
+  14:17  warning  'session' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\transactions\page.tsx
+  17:3  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\api\contributors\route.ts
+  5:35  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\api\families\[id]\members\route.ts
+  4:23  warning  'users' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\api\transactions\import\route.ts
+  81:22  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\components\contributor-combobox.tsx
+  118:29  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+  118:38  error  `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`  react/no-unescaped-entities
+
+E:\anti\Moi\src\components\contributor-history-sheet.tsx
+  5:19  warning  'ArrowRight' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\components\dashboard-header.tsx
+  7:39  warning  'useCallback' is defined but never used  @typescript-eslint/no-unused-vars
+  9:10  warning  'cn' is defined but never used           @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\components\notifications-dropdown.tsx
+  42:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+E:\anti\Moi\src\components\notifications-dropdown.tsx:42:5
+  40 |
+  41 |   useEffect(() => {
+> 42 |     fetchNotifications();
+     |     ^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  43 |     const interval = setInterval(fetchNotifications, 30000);
+  44 |     return () => clearInterval(interval);
+  45 |   }, []);  react-hooks/set-state-in-effect
+
+E:\anti\Moi\src\db\reset.ts
+  3:10  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\db\seed.ts
+  90:12  warning  'festival' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\types\next-auth.d.ts
+  1:8  warning  'NextAuth' is defined but never used  @typescript-eslint/no-unused-vars
+
+Γ£û 30 problems (8 errors, 22 warnings)
+

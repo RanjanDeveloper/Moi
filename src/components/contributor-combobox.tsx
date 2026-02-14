@@ -115,7 +115,7 @@ export function ContributorCombobox({
                      className="text-indigo-400 hover:text-indigo-300 w-full text-left"
                      onClick={() => handleSelect(search)}
                    >
-                     Create "{search}"
+                     Create &quot;{search}&quot;
                    </button>
                 </CommandEmpty>
                 <CommandGroup>

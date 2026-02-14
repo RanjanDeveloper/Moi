@@ -4,7 +4,7 @@ import React from 'react';
 
 // We need to override the next/link mock for this test
 vi.mock('next/link', () => ({
-  default: ({ children, href, ...props }: any) => (
+  default: ({ children, href, ...props }: React.PropsWithChildren<{ href: string; [key: string]: unknown }>) => (
     <a href={href} {...props}>{children}</a>
   ),
 }));
