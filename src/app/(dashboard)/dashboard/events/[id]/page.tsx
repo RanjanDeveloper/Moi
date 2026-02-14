@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Papa from "papaparse";
 import { Pagination } from "@/components/ui/pagination";
+import { ContributorCombobox } from "@/components/contributor-combobox";
 
 interface Transaction {
   id: string;
@@ -336,12 +337,10 @@ export default function EventDetailPage() {
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label className="text-slate-300">Name</Label>
-        <Input
-          placeholder="Contributor name"
+        <ContributorCombobox
           value={txForm.contributorName}
-          onChange={(e) => setTxForm((prev) => ({ ...prev, contributorName: e.target.value }))}
-          required
-          className="bg-slate-800/50 border-slate-700 text-white h-11"
+          onChange={(val) => setTxForm((prev) => ({ ...prev, contributorName: val }))}
+          className="h-11"
         />
       </div>
       <div className="grid grid-cols-2 gap-4">
