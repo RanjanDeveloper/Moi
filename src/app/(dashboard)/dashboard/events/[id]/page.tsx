@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import Papa from "papaparse";
 import { Pagination } from "@/components/ui/pagination";
 import { ContributorCombobox } from "@/components/contributor-combobox";
+import { ContributorHistorySheet } from "@/components/contributor-history-sheet";
 
 interface Transaction {
   id: string;
@@ -83,6 +84,7 @@ export default function EventDetailPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); // Default sort for API
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedContributor, setSelectedContributor] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -465,9 +467,12 @@ export default function EventDetailPage() {
                       {format(new Date(tx.createdAt), "MMM d, h:mm a")}
                     </span>
                     <p className="text-sm text-slate-300">
-                      <span className="font-medium text-white">
+                      <button
+                        onClick={() => setSelectedContributor(tx.contributorName)}
+                        className="font-medium text-white hover:underline hover:text-indigo-400 transition-colors"
+                      >
                         {tx.contributorName}
-                      </span>{" "}
+                      </button>{" "}
                       {tx.direction === "received" ? "contributed" : "received"}{" "}
                       <span
                         className={cn(
@@ -562,7 +567,12 @@ export default function EventDetailPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-white truncate">{tx.contributorName}</p>
+                  <button
+                    onClick={() => setSelectedContributor(tx.contributorName)}
+                    className="text-sm font-medium text-white truncate hover:underline hover:text-indigo-400 text-left"
+                  >
+                    {tx.contributorName}
+                  </button>
                   {tx.paidStatus && (
                     <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">Paid</Badge>
                   )}
@@ -607,6 +617,12 @@ export default function EventDetailPage() {
           {renderFormFields(handleEditTransaction, "Update Entry")}
         </DialogContent>
       </Dialog>
+
+      <ContributorHistorySheet
+        isOpen={!!selectedContributor}
+        contributorName={selectedContributor}
+        onClose={() => setSelectedContributor(null)}
+      />
     </div>
   );
 }

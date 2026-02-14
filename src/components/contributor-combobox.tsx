@@ -91,7 +91,7 @@ export function ContributorCombobox({
           aria-expanded={open}
           className={cn("w-full justify-between bg-slate-800/50 border-slate-700 text-white hover:bg-slate-800", className)}
         >
-          {value || "Select or type name..."}
+          <span className="truncate">{value || "Select or type name..."}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -101,7 +101,7 @@ export function ContributorCombobox({
             placeholder="Search contributor..."
             value={search}
             onValueChange={setSearch}
-            className="text-white placeholder:text-slate-500"
+            className="text-white placeholder:text-slate-500 border-slate-800"
           />
           <CommandList className="max-h-[200px]">
             {loading ? (

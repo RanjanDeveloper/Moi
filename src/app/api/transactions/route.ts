@@ -57,8 +57,14 @@ export async function GET(req: NextRequest) {
             conditions.push(inArray(moiTransactions.familyId, familyIds));
         }
 
+        const contributorName = searchParams.get("contributorName");
+
         if (search) {
             conditions.push(ilike(moiTransactions.contributorName, `%${search}%`));
+        }
+
+        if (contributorName) {
+            conditions.push(eq(moiTransactions.contributorName, contributorName));
         }
 
         if (direction === "given" || direction === "received") {
