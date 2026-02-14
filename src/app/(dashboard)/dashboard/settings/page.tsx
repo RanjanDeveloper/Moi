@@ -61,7 +61,7 @@ export default function SettingsPage() {
         toast.success("Name updated!");
         await updateSession({ name: name.trim() });
         // detailed logs
-        console.log("Session updated with:", { name: name.trim() });
+        // console.log("Session updated with:", { name: name.trim() });
       } else {
         const data = await res.json();
         toast.error(data.error || "Failed to update");
