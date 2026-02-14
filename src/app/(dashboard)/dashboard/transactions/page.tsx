@@ -17,6 +17,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/ui/pagination";
+import { useContributorHistory } from "@/components/contributor-history-provider";
 
 interface Transaction {
   id: string;
@@ -29,6 +30,7 @@ interface Transaction {
 }
 
 export default function TransactionsPage() {
+  const { openContributorHistory } = useContributorHistory();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -150,9 +152,12 @@ export default function TransactionsPage() {
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold text-white truncate">
+                  <button
+                    onClick={() => openContributorHistory(tx.contributorName)}
+                    className="text-sm font-semibold text-white truncate hover:underline hover:text-indigo-400 text-left"
+                  >
                     {tx.contributorName}
-                  </span>
+                  </button>
                   {tx.paidStatus && (
                     <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400 px-1.5 py-0">
                       Paid

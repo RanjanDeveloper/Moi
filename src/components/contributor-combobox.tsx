@@ -95,15 +95,15 @@ export function ContributorCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-slate-900 border-slate-800">
-        <Command className="bg-slate-900 border-slate-800">
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-slate-900 border-slate-700" align="start">
+        <Command className="bg-slate-900 text-white">
           <CommandInput
             placeholder="Search contributor..."
             value={search}
             onValueChange={setSearch}
-            className="text-white placeholder:text-slate-500 border-slate-800"
+            className="border-slate-700 text-white placeholder:text-slate-500"
           />
-          <CommandList className="max-h-[200px]">
+          <CommandList className="max-h-[200px] p-1">
             {loading ? (
               <div className="flex items-center justify-center p-4">
                 <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
@@ -124,7 +124,7 @@ export function ContributorCombobox({
                       key={item}
                       value={item}
                       onSelect={handleSelect}
-                      className="text-slate-200 aria-selected:bg-slate-800 aria-selected:text-white cursor-pointer"
+                      className="text-slate-200 aria-selected:bg-slate-800 aria-selected:text-white cursor-pointer rounded-sm"
                     >
                       <Check
                         className={cn(

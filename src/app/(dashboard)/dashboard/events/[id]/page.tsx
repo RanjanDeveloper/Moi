@@ -44,7 +44,7 @@ import { toast } from "sonner";
 import Papa from "papaparse";
 import { Pagination } from "@/components/ui/pagination";
 import { ContributorCombobox } from "@/components/contributor-combobox";
-import { ContributorHistorySheet } from "@/components/contributor-history-sheet";
+import { useContributorHistory } from "@/components/contributor-history-provider";
 
 interface Transaction {
   id: string;
@@ -84,7 +84,7 @@ export default function EventDetailPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); // Default sort for API
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [selectedContributor, setSelectedContributor] = useState<string | null>(null);
+  const { openContributorHistory } = useContributorHistory();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -468,7 +468,7 @@ export default function EventDetailPage() {
                     </span>
                     <p className="text-sm text-slate-300">
                       <button
-                        onClick={() => setSelectedContributor(tx.contributorName)}
+                        onClick={() => openContributorHistory(tx.contributorName)}
                         className="font-medium text-white hover:underline hover:text-indigo-400 transition-colors"
                       >
                         {tx.contributorName}
@@ -568,7 +568,7 @@ export default function EventDetailPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setSelectedContributor(tx.contributorName)}
+                    onClick={() => openContributorHistory(tx.contributorName)}
                     className="text-sm font-medium text-white truncate hover:underline hover:text-indigo-400 text-left"
                   >
                     {tx.contributorName}
@@ -617,12 +617,6 @@ export default function EventDetailPage() {
           {renderFormFields(handleEditTransaction, "Update Entry")}
         </DialogContent>
       </Dialog>
-
-      <ContributorHistorySheet
-        isOpen={!!selectedContributor}
-        contributorName={selectedContributor}
-        onClose={() => setSelectedContributor(null)}
-      />
     </div>
   );
 }
