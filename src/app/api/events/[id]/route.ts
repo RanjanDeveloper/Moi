@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { events, memberships, moiTransactions } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export async function GET(
     _req: NextRequest,
@@ -21,7 +21,6 @@ export async function GET(
             with: {
                 family: { columns: { id: true, name: true } },
                 creator: { columns: { name: true } },
-                transactions: true,
             },
         });
 
@@ -41,7 +40,22 @@ export async function GET(
             return NextResponse.json({ error: "Not a member" }, { status: 403 });
         }
 
-        return NextResponse.json(event);
+        // Get aggregated stats
+        const [stats] = await db
+            .select({
+                totalReceived: sql<number>`COALESCE(SUM(CASE WHEN ${moiTransactions.direction} = 'received' THEN ${moiTransactions.amount} ELSE 0 END), 0)`,
+                totalGiven: sql<number>`COALESCE(SUM(CASE WHEN ${moiTransactions.direction} = 'given' THEN ${moiTransactions.amount} ELSE 0 END), 0)`,
+                transactionCount: sql<number>`COUNT(*)`,
+            })
+            .from(moiTransactions)
+            .where(eq(moiTransactions.eventId, id));
+
+        return NextResponse.json({
+            ...event,
+            totalReceived: Number(stats.totalReceived),
+            totalGiven: Number(stats.totalGiven),
+            transactionCount: Number(stats.transactionCount),
+        });
     } catch (error) {
         console.error("Error fetching event:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

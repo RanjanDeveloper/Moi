@@ -42,6 +42,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import { Pagination } from "@/components/ui/pagination";
 
 interface Transaction {
   id: string;
@@ -64,17 +65,23 @@ interface EventDetail {
   familyId: string;
   family: { id: string; name: string };
   creator: { name: string };
-  transactions: Transaction[];
+  totalReceived: number;
+  totalGiven: number;
+  transactionCount: number;
 }
 
 export default function EventDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [event, setEvent] = useState<EventDetail | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [txLoading, setTxLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"amount" | "createdAt" | "contributorName">("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); // Default sort for API
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -100,6 +107,38 @@ export default function EventDetailPage() {
       setLoading(false);
     }
   }, [params.id]);
+
+  const fetchTransactions = useCallback(async () => {
+    setTxLoading(true);
+    try {
+      const query = new URLSearchParams({
+        eventId: params.id as string,
+        page: currentPage.toString(),
+        limit: "10",
+        sortBy,
+        sortOrder,
+        search
+      });
+      const res = await fetch(`/api/transactions?${query}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTransactions(data.data);
+        setTotalPages(data.meta.totalPages);
+      }
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+    } finally {
+      setTxLoading(false);
+    }
+  }, [params.id, currentPage, sortBy, sortOrder, search]);
+
+  useEffect(() => {
+    fetchEvent();
+  }, [fetchEvent]);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   useEffect(() => {
     fetchEvent();
@@ -129,7 +168,9 @@ export default function EventDetailPage() {
         toast.success("Entry added!");
         setAddDialogOpen(false);
         setTxForm({ contributorName: "", amount: "", notes: "", direction: "received", paidStatus: false });
-        fetchEvent();
+        setTxForm({ contributorName: "", amount: "", notes: "", direction: "received", paidStatus: false });
+        fetchEvent(); // Refresh stats
+        fetchTransactions(); // Refresh list
       } else {
         const data = await res.json();
         toast.error(data.error || "Failed to add entry");
@@ -163,7 +204,9 @@ export default function EventDetailPage() {
         toast.success("Entry updated!");
         setEditDialogOpen(false);
         setEditingTx(null);
+        setEditingTx(null);
         fetchEvent();
+        fetchTransactions();
       }
     } catch {
       toast.error("Something went wrong");
@@ -178,7 +221,9 @@ export default function EventDetailPage() {
       const res = await fetch(`/api/transactions/${txId}`, { method: "DELETE" });
       if (res.ok) {
         toast.success("Entry deleted");
+        toast.success("Entry deleted");
         fetchEvent();
+        fetchTransactions();
       }
     } catch {
       toast.error("Failed to delete");
@@ -244,6 +289,7 @@ export default function EventDetailPage() {
             toast.warning(`${data.errors.length} entries had issues`);
           }
           fetchEvent();
+          fetchTransactions();
         } catch {
           toast.error("Import failed");
         }
@@ -279,25 +325,11 @@ export default function EventDetailPage() {
     );
   }
 
-  // Sort and filter transactions
-  const transactions = [...(event.transactions || [])];
-  if (search) {
-    const s = search.toLowerCase();
-    transactions.splice(
-      0,
-      transactions.length,
-      ...transactions.filter((t) => t.contributorName.toLowerCase().includes(s))
-    );
-  }
-  transactions.sort((a, b) => {
-    const mul = sortOrder === "asc" ? 1 : -1;
-    if (sortBy === "amount") return (a.amount - b.amount) * mul;
-    if (sortBy === "contributorName") return a.contributorName.localeCompare(b.contributorName) * mul;
-    return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * mul;
-  });
-
-  const totalReceived = event.transactions.filter((t) => t.direction === "received").reduce((s, t) => s + t.amount, 0);
-  const totalGiven = event.transactions.filter((t) => t.direction === "given").reduce((s, t) => s + t.amount, 0);
+  // Removed client-side sorting/filtering logic as it is now handled by API
+  
+  // Stats come directly from event
+  const totalReceived = event.totalReceived;
+  const totalGiven = event.totalGiven;
 
   // Inline form JSX — NOT a component to avoid remount/focus loss
   const renderFormFields = (onSubmit: (e: React.FormEvent) => void, buttonLabel: string) => (
@@ -406,12 +438,12 @@ export default function EventDetailPage() {
         </div>
         <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-3 text-center">
           <p className="text-[10px] uppercase tracking-wider text-indigo-400/70">Entries</p>
-          <p className="text-lg font-bold text-indigo-400">{event.transactions.length}</p>
+          <p className="text-lg font-bold text-indigo-400">{event.transactionCount}</p>
         </div>
       </div>
 
-      {/* Recent Activity Timeline */}
-      {transactions.length > 0 && (
+      {/* Recent Activity Timeline - Using paginated transactions */}
+      {!txLoading && transactions.length > 0 && (
         <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
           <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
             <Clock className="h-4 w-4 text-indigo-400" />
@@ -508,7 +540,11 @@ export default function EventDetailPage() {
       </div>
 
       {/* Entries List */}
-      {transactions.length === 0 ? (
+      {txLoading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+        </div>
+      ) : transactions.length === 0 ? (
         <div className="text-center py-12 text-slate-500">
           <p>No entries yet. Add your first moi entry!</p>
         </div>
@@ -551,6 +587,16 @@ export default function EventDetailPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Pagination */}
+      {!txLoading && transactions.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          isLoading={txLoading}
+        />
       )}
 
       {/* Edit Dialog */}

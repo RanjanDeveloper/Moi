@@ -192,12 +192,14 @@ export default function DashboardPage() {
                   name="Received"
                   fill="#6366f1"
                   radius={[6, 6, 0, 0]}
+                  maxBarSize={50}
                 />
                 <Bar
                   dataKey="given"
                   name="Given"
                   fill="#f97316"
                   radius={[6, 6, 0, 0]}
+                  maxBarSize={50}
                 />
               </BarChart>
             </ResponsiveContainer>
