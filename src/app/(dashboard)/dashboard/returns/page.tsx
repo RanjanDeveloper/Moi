@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeftRight,
@@ -8,10 +8,14 @@ import {
   Minus,
   Calendar,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 interface ReturnEntry {
   personName: string;
@@ -30,15 +34,49 @@ interface ReturnEntry {
   }[];
 }
 
-export default function ReturnsPage() {
-  const { data: returns, error } = useSWR<ReturnEntry[]>("/api/returns");
-  const loading = !returns && !error;
-  const [search, setSearch] = useState("");
+interface ReturnsResponse {
+  data: ReturnEntry[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+function ReturnsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const page = Number(searchParams.get("page")) || 1;
+  const search = searchParams.get("search") || "";
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const filtered = returns?.filter((r) =>
+  // Fetch paginated data
+  const { data: response, error } = useSWR<ReturnsResponse>(
+    `/api/returns?page=${page}&limit=10`
+  );
+
+  const loading = !response && !error;
+  const returns = response?.data || [];
+  const meta = response?.meta;
+
+  // Filter logic is now client-side on the current page for search responsiveness
+  // Ideally, search should also be server-side, but keeping it mixed for now based on previous implementation
+  const filtered = returns.filter((r) =>
     r.personName.toLowerCase().includes(search.toLowerCase())
-  ) || [];
+  );
+
+  const updateUrl = (key: string, value: string | number | null) => {
+    const params = new URLSearchParams(searchParams);
+    if (value === null || value === "") {
+      params.delete(key);
+    } else {
+      params.set(key, String(value));
+    }
+    router.replace(`${pathname}?${params.toString()}`);
+  };
 
   if (loading) {
     return (
@@ -61,7 +99,7 @@ export default function ReturnsPage() {
         <Input
           placeholder="Search people..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => updateUrl("search", e.target.value)}
           className="pl-10 bg-slate-900/50 border-slate-800 text-white placeholder:text-slate-500 h-11"
         />
       </div>
@@ -168,8 +206,49 @@ export default function ReturnsPage() {
               </div>
             );
           })}
+
+          {/* Pagination Controls */}
+          {meta && meta.totalPages > 1 && (
+            <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-6">
+              <span className="text-xs text-slate-500">
+                Page {meta.page} of {meta.totalPages} ({meta.total} returns)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-slate-700 hover:bg-slate-800"
+                  onClick={() => updateUrl("page", Math.max(1, page - 1))}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 border-slate-700 hover:bg-slate-800"
+                  onClick={() => updateUrl("page", Math.min(meta.totalPages, page + 1))}
+                  disabled={page >= meta.totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+export default function ReturnsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+      </div>
+    }>
+      <ReturnsContent />
+    </Suspense>
   );
 }

@@ -14,6 +14,11 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const familyId = searchParams.get("familyId");
 
+        // Pagination params
+        const page = parseInt(searchParams.get("page") || "1");
+        const limit = parseInt(searchParams.get("limit") || "10");
+        const offset = (page - 1) * limit;
+
         const userMemberships = await db.query.memberships.findMany({
             where: eq(memberships.userId, session.user.id),
             columns: { familyId: true },
@@ -29,7 +34,15 @@ export async function GET(req: NextRequest) {
             ? eq(contributionHistory.familyId, targetFamilyId)
             : inArray(contributionHistory.familyId, familyIds);
 
-        // Get aggregated contributions per person
+        // Get total count for pagination metadata
+        const totalCountResult = await db
+            .select({ count: sql<number>`COUNT(DISTINCT ${contributionHistory.personName})` })
+            .from(contributionHistory)
+            .where(familyFilter);
+
+        const total = Number(totalCountResult[0]?.count || 0);
+
+        // Get aggregated contributions per person with pagination
         const results = await db
             .select({
                 personName: contributionHistory.personName,
@@ -42,7 +55,9 @@ export async function GET(req: NextRequest) {
             .from(contributionHistory)
             .where(familyFilter)
             .groupBy(contributionHistory.personName)
-            .orderBy(desc(sql`MAX(${contributionHistory.date})`));
+            .orderBy(desc(sql`MAX(${contributionHistory.date})`))
+            .limit(limit)
+            .offset(offset);
 
         // Get per-person history timeline
         const enrichedResults = await Promise.all(
@@ -67,7 +82,15 @@ export async function GET(req: NextRequest) {
             })
         );
 
-        return NextResponse.json(enrichedResults);
+        return NextResponse.json({
+            data: enrichedResults,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
     } catch (error) {
         console.error("Error fetching returns:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

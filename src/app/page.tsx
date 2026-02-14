@@ -50,7 +50,15 @@ const features = [
   },
 ];
 
-export default function LandingPage() {
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+
+export default async function LandingPage() {
+  const session = await auth();
+  if (session?.user) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Hero */}
