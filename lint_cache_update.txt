@@ -1,0 +1,60 @@
+﻿
+> moi-ledger@0.1.0 lint
+> eslint
+
+
+E:\anti\Moi\src\__tests__\components\sidebar.test.tsx
+  2:26  warning  'fireEvent' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\__tests__\components\stat-card.test.tsx
+  47:13  warning  'container' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\page.tsx
+  11:3   warning  'Receipt' is defined but never used         @typescript-eslint/no-unused-vars
+  28:10  warning  'cn' is defined but never used              @typescript-eslint/no-unused-vars
+  65:9   warning  'error' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\returns\page.tsx
+   3:10  warning  'useEffect' is defined but never used     @typescript-eslint/no-unused-vars
+   4:10  warning  'Badge' is defined but never used         @typescript-eslint/no-unused-vars
+   9:3   warning  'TrendingUp' is defined but never used    @typescript-eslint/no-unused-vars
+  10:3   warning  'TrendingDown' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\settings\page.tsx
+  15:17  warning  'session' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\(dashboard)\dashboard\transactions\page.tsx
+  17:3  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\api\contributors\route.ts
+  5:35  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\api\families\[id]\members\route.ts
+  4:23  warning  'users' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\app\api\transactions\import\route.ts
+  81:22  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\components\contributor-history-sheet.tsx
+  5:19  warning  'ArrowRight' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\components\dashboard-header.tsx
+  7:39  warning  'useCallback' is defined but never used  @typescript-eslint/no-unused-vars
+  9:10  warning  'cn' is defined but never used           @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\components\notifications-dropdown.tsx
+  42:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-floating-promises')
+  46:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+E:\anti\Moi\src\db\reset.ts
+  3:10  warning  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\db\seed.ts
+  90:12  warning  'festival' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+E:\anti\Moi\src\types\next-auth.d.ts
+  1:8  warning  'NextAuth' is defined but never used  @typescript-eslint/no-unused-vars
+
+Γ£û 22 problems (0 errors, 22 warnings)
+  0 errors and 2 warnings potentially fixable with the `--fix` option.
+

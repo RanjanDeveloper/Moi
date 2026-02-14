@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
   ArrowLeftRight,
   Search,
-  TrendingUp,
-  TrendingDown,
   Minus,
   Calendar,
   Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import useSWR from "swr";
 
 interface ReturnEntry {
   personName: string;
@@ -33,30 +31,14 @@ interface ReturnEntry {
 }
 
 export default function ReturnsPage() {
-  const [returns, setReturns] = useState<ReturnEntry[]>([]);
+  const { data: returns, error } = useSWR<ReturnEntry[]>("/api/returns");
+  const loading = !returns && !error;
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchReturns = async () => {
-      try {
-        const res = await fetch("/api/returns");
-        if (res.ok) {
-          setReturns(await res.json());
-        }
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchReturns();
-  }, []);
-
-  const filtered = returns.filter((r) =>
+  const filtered = returns?.filter((r) =>
     r.personName.toLowerCase().includes(search.toLowerCase())
-  );
+  ) || [];
 
   if (loading) {
     return (

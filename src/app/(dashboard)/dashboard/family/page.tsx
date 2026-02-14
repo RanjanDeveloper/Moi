@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import useSWR from "swr";
 
 interface Family {
   id: string;
@@ -44,10 +45,15 @@ interface Member {
 }
 
 export default function FamilyPage() {
-  const [families, setFamilies] = useState<Family[]>([]);
+  const { data: families = [], mutate: mutateFamilies } = useSWR<Family[]>("/api/families");
   const [selectedFamily, setSelectedFamily] = useState<Family | null>(null);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  const { data: members = [] } = useSWR<Member[]>(
+    selectedFamily ? `/api/families/${selectedFamily.id}/members` : null
+  );
+
+  const loading = !families;
+  
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
   const [familyName, setFamilyName] = useState("");
@@ -56,39 +62,12 @@ export default function FamilyPage() {
   const [copied, setCopied] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchFamilies = async () => {
-    try {
-      const res = await fetch("/api/families");
-      if (res.ok) {
-        const data = await res.json();
-        setFamilies(data);
-        if (data.length > 0 && !selectedFamily) {
-          setSelectedFamily(data[0]);
-          fetchMembers(data[0].id);
-        }
-      }
-    } catch (error) {
-      console.error("Error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMembers = async (familyId: string) => {
-    try {
-      const res = await fetch(`/api/families/${familyId}/members`);
-      if (res.ok) {
-        setMembers(await res.json());
-      }
-    } catch (error) {
-      console.error("Error:", error);
-    }
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Select first family on load
   useEffect(() => {
-    fetchFamilies();
-  }, []);
+    if (families && families.length > 0 && !selectedFamily) {
+      setSelectedFamily(families[0]);
+    }
+  }, [families, selectedFamily]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,7 +83,7 @@ export default function FamilyPage() {
         setCreateDialogOpen(false);
         setFamilyName("");
         setFamilyDesc("");
-        fetchFamilies();
+        mutateFamilies();
       }
     } catch {
       toast.error("Failed to create family");
@@ -127,7 +106,7 @@ export default function FamilyPage() {
         toast.success("Joined family!");
         setJoinDialogOpen(false);
         setInviteCode("");
-        fetchFamilies();
+        mutateFamilies();
       } else {
         toast.error(data.error);
       }
@@ -246,7 +225,6 @@ export default function FamilyPage() {
                 key={family.id}
                 onClick={() => {
                   setSelectedFamily(family);
-                  fetchMembers(family.id);
                 }}
                 className={cn(
                   "rounded-xl border p-4 cursor-pointer transition-all",

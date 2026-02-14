@@ -9,39 +9,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { User, Lock, Loader2, Mail, Calendar as CalendarIcon, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import useSWR from "swr";
 
 export default function SettingsPage() {
-  const { data: session, update: updateSession } = useSession();
-  const [profile, setProfile] = useState<{ name: string; email: string; createdAt: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { update: updateSession } = useSession();
+  const { data: profile, error, mutate } = useSWR("/api/user");
+  const loading = !profile && !error;
 
   // Profile form
   const [name, setName] = useState("");
   const [savingName, setSavingName] = useState(false);
+
+  // Sync name with profile data when loaded
+  useEffect(() => {
+    if (profile?.name) {
+      setName(profile.name);
+    }
+  }, [profile]);
 
   // Password form
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await fetch("/api/user");
-        if (res.ok) {
-          const data = await res.json();
-          setProfile(data);
-          setName(data.name);
-        }
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
 
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,11 +47,9 @@ export default function SettingsPage() {
         body: JSON.stringify({ name: name.trim() }),
       });
       if (res.ok) {
-        const data = await res.json();
         toast.success("Name updated!");
         await updateSession({ name: name.trim() });
-        // detailed logs
-        // console.log("Session updated with:", { name: name.trim() });
+        mutate(); // Revalidate profile data
       } else {
         const data = await res.json();
         toast.error(data.error || "Failed to update");
